@@ -191,29 +191,43 @@ test('launcher integration: opt-in progress follows the spawned run and confirms
   }
   await fs.writeFile(path.join(directory, 'run.cjs'), `
     const fs = require('node:fs'), path = require('node:path');
+    const mode = process.env.PROGRESS_SIMULATION_MODE;
     const run = fs.mkdtempSync(path.join(__dirname, 'fixture-run-'));
     fs.mkdirSync(path.join(run, 'switch2/ro'), {recursive:true});
-    fs.writeFileSync(path.join(run, 'result.json'), JSON.stringify({verified:true,
+    fs.writeFileSync(path.join(run, 'result.json'), JSON.stringify({verified:mode !== 'frontend-failure',
       rpc:{state:'listening'}, ro:{retainedEndpoint:{ready:true}}}));
     fs.writeFileSync(path.join(run, 'switch2/pipeline.json'), JSON.stringify({stages:[
       {name:'FS read, write and restoration',status:'running'}]}));
     fs.writeFileSync(path.join(run, 'switch2/ro/start-hen.cjs'),
-      'exports.main = async () => ({pid:210,file:"fixture-startup.json"});');
+      mode === 'startup-failure'
+        ? 'exports.main = async () => {require("node:fs").writeFileSync(__dirname + "/hen-startup.json", JSON.stringify({operation:10,result:0,gateRestoreResult:123})); throw Error("simulated startup restoration failure");};'
+        : 'exports.main = async () => ({pid:210,file:"fixture-startup.json"});');
     console.log('Run folder: ' + run);
     console.log('fixture console output');
     setTimeout(() => console.log('RO frontend verified'), 120);
     setTimeout(() => process.exit(0), 250);
   `);
-  for (const enabled of [false, true]) {
-    const args = [path.join(directory, 'hen.cjs'), '192.168.2.118', '--dir', ship,
-      '--no-programs', ...(enabled ? ['--progress'] : [])];
-    const result = spawnSync(process.execPath, args, {encoding: 'utf8', timeout: 5000});
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /fixture console output/);
-    assert.match(result.stdout, /HEN is running/);
-    if (enabled) {
-      assert.match(result.stderr, /Milestone estimates/);
-      assert.match(result.stderr, /~100%.*HEN started \(verified\)/);
-    } else assert.equal(result.stderr, '');
+  for (const mode of ['success', 'frontend-failure', 'startup-failure']) {
+    for (const enabled of [false, true]) {
+      const args = [path.join(directory, 'hen.cjs'), '192.168.2.118', '--dir', ship,
+        '--no-programs', ...(enabled ? ['--progress'] : [])];
+      const result = spawnSync(process.execPath, args, {encoding: 'utf8', timeout: 5000,
+        env: {...process.env, PROGRESS_SIMULATION_MODE: mode}});
+      assert.equal(result.status, mode === 'success' ? 0 : 1, result.stderr);
+      assert.match(result.stdout, /fixture console output/);
+      if (mode === 'success') assert.match(result.stdout, /HEN is running/);
+      else assert.doesNotMatch(result.stdout, /HEN is running/);
+      if (enabled) {
+        assert.match(result.stderr, /Milestone estimates/);
+        if (mode === 'success') assert.match(result.stderr, /~100%.*HEN started \(verified\)/);
+        else {
+          assert.doesNotMatch(result.stderr, /~100%/);
+          assert.match(result.stderr, /~0%.*failed; progress reset/);
+        }
+      } else {
+        assert.doesNotMatch(result.stderr, /\[progress\]/);
+        if (mode === 'success') assert.equal(result.stderr, '');
+      }
+    }
   }
 });

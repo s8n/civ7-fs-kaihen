@@ -138,6 +138,8 @@ async function readSnapshot(run, read = createReader()) {
   // Ignore the old report in that interval, including its old marker hits/error.
   if (attempt?.started && !(Date.parse(report.started) >= Date.parse(attempt.started))) report = {};
   if (Date.parse(acquisition?.started) > Date.parse(report.started)) report = {};
+  // Even an in-run path can refer to a copied report from another session.
+  if (pipeline.session && report.session && report.session !== pipeline.session) report = {};
   return {pipeline, supervisor, report, hen};
 }
 

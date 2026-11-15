@@ -105,6 +105,18 @@ failure is not reported as the final result. Only the launcher's successful
 HEN startup verification produces 100%. The display does not change exploit
 timing parameters, retries, console operations or the Ctrl-C release behavior.
 
+To test the display without contacting a console:
+
+```sh
+node --test engine/progress.test.cjs engine/progress.simulation.test.cjs
+```
+
+The simulations write synthetic reports into temporary folders and replay a
+successful startup, failed race waves, acquisition retries, metadata-repair
+fallback and misleading success-shaped records. The launcher integration
+test also checks that rejected frontend/startup validation never prints 100%.
+No payloads, network connections or real run files are used by these tests.
+
 ## When it fails
 
 Most failed runs stop in phase 2 with `Positive canary verification failed`,
