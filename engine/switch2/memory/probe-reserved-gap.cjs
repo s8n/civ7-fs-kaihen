@@ -448,7 +448,8 @@ async function main() {
       await s.ipc('Reserve own gap content ' + i, root, 200)));
     const roles = ['commit', 'hole', 'tail0', 'tail1', 'tail2', 'tail3', 'canary',
       'filler0', 'filler1', 'release', 'guard0', 'guard1', 'trigger'];
-    const delays = ([0, 300000, 350000, 450000, 550000, 650000, 1700000, 2000000, 2150000, 2800000]);
+    const delays = ([0, 300000, 350000, 450000, 550000, 650000, 1700000, 2000000, 2150000, 2200000]);
+    //Previously was const delays = ([0, 300000, 350000, 450000, 550000, 650000, 1700000, 2000000, 2150000, 2800000]);
     report.workerDelaysNs = delays;
     // Held so a scan can retime the trigger between waves without rebuilding.
     const triggerTiming = sleep(400000 + triggerShift);

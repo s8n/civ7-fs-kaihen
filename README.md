@@ -9,6 +9,22 @@ This repository starts it from Civilization VII instead, using the fs
 exploit from [civ7-fs](https://github.com/HerXayah/civ7-fs) and Gezine's
 [CivSwitch](https://github.com/Gezine/CivSwitch) as the way in.
 
+## Changes in this fork
+
+- **Wave timing.** The release step fires at 2,200,000 ns instead of 2,800,000,
+  used together with `NS2_TRIGGER_SHIFT_NS=-200000`. On the test console the
+  stock schedule aborted about 85% of waves; trace analysis showed the pin
+  request takes either ~80 µs or ~1 ms, and the slow case delayed the guard
+  until after the hole had finished.
+- **Auto restart.** `switch2-restart.py` restarts the console over the LAN
+  through the CivSwitch loader, so a failed run doesn't need the power button.
+- **Retry console.** `kaihen-console.py` is a small menu: Enter runs an attempt,
+  1 reinstalls the trigger save and restarts.
+- **For highest success rate** it seemed to prefer 'enable handheld boost mode',
+  and connect the console to power.
+
+Timing changes, auto restart and console by [ossieandco](https://github.com/ossieandco).
+
 ## What you need
 
 - A Switch 2 <= 23.0.1. Only tested on firmware 23.0.1, does not work on any lower
@@ -136,4 +152,8 @@ adapter after kaiHEN's unmodified `bootstrap.bin`.
   repository builds on.
 - [kurumuz](https://github.com/kurumuz) for kaiHEN and his ns2jb fork.
 - [pepsipu](https://gitlab.com/pepsipu/ns2jb) for discovering nsj2b vuln, and the ns2jb codebase.
+- [ossieandco](https://github.com/ossieandco) for the wave timing changes
+  (earlier release step and trigger shift, from per-wave trace analysis showing
+  slow pin requests pushed the guard past the hole), the LAN auto-restart
+  script, and the retry console.
 - LLMs were involved in the development of this. Please don't use it if you don't trust it.
