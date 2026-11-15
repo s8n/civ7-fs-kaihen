@@ -79,10 +79,31 @@ Launcher options:
 | `--restore-save DIR` | restore the CivSwitch save before starting (see below); `DIR` is the `save-tools` folder of [civswitch-kit](https://gitee.com/mza1010/civswitch-kit) |
 | `--no-hbmenu` | do not copy `hbmenu.nro` |
 | `--no-programs` | do not copy `programs/` to `/switch/` on the SD card |
+| `--progress` | print an estimated progress bar, checkpoints and acquisition wave counters alongside the usual logs |
 
 The computer listens on port 39380 for the console to connect. If something
 else uses that port, set `NS2_PC_PORT` to another one; the launcher sends the
 same port to the console.
+
+To show progress in the same terminal:
+
+```sh
+NS2_WAVE_ATTEMPTS=10 node engine/hen.cjs 192.168.2.118 --dir /path/to/extracted/kaihen --progress
+```
+
+The optional display reads only this launcher's run reports, using Node.js;
+it does not need Python or a second terminal. It prints a new progress-bar
+line when a milestone, checkpoint or wave counter changes, retaining the
+normal output and remaining readable when redirected to a file.
+
+Percentages are approximate workflow milestones, **not** elapsed time,
+time remaining, success probability or proof that a step passed. More waves
+do not necessarily advance the bar. It resets to zero on an acquisition
+failure, starts fresh on an internal retry, and returns to phase 2 if a
+metadata repair requires another FS acquisition. A recoverable metadata
+failure is not reported as the final result. Only the launcher's successful
+HEN startup verification produces 100%. The display does not change exploit
+timing parameters, retries, console operations or the Ctrl-C release behavior.
 
 ## When it fails
 

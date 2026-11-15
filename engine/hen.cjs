@@ -20,12 +20,13 @@ function usage(code) {
                         (CivSwitch save-tools folder)
   --no-hbmenu           do not stage hbmenu.nro to SD
   --no-programs         do not stage the programs/ folder to SD
+  --progress            show estimated milestone progress and acquisition wave counts
 Start with CivSwitch's Remote JS Loader listening on the console (:9026).`);
   process.exit(code);
 }
 
 function parse(args) {
-  const options = {ship: defaultShip, restore: null, hbmenu: true, programs: true};
+  const options = {ship: defaultShip, restore: null, hbmenu: true, programs: true, progress: false};
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     const value = () => {
@@ -37,6 +38,7 @@ function parse(args) {
     else if (arg === '--restore-save') options.restore = path.resolve(value());
     else if (arg === '--no-hbmenu') options.hbmenu = false;
     else if (arg === '--no-programs') options.programs = false;
+    else if (arg === '--progress') options.progress = true;
     else if (!options.console && net.isIPv4(arg)) options.console = arg;
     else usage(1);
   }
@@ -46,12 +48,12 @@ function parse(args) {
 
 const isFile = file => fs.statSync(file, {throwIfNoEntry: false})?.isFile();
 
-function observe(child) {
+function observe(child, onLine = () => {}) {
   const seen = [];
   let exitCode;
   const lines = readline.createInterface({input: child.stdout});
   child.once('exit', code => { exitCode = code; });
-  lines.on('line', line => seen.push(line));
+  lines.on('line', line => {seen.push(line); onLine(line);});
   return {
     seen,
     waitFor(fragment) {
@@ -83,12 +85,11 @@ function runToEnd(command, args) {
 }
 
 let acquisition;
-// run.cjs treats SIGTERM as a graceful release of the held endpoint.
-for (const signal of ['SIGINT', 'SIGTERM'])
-  process.on(signal, () => acquisition?.kill('SIGTERM'));
+let progress;
 
 async function main() {
   const options = parse(process.argv.slice(2));
+  if (options.progress) progress = require('./lib/progress.cjs').createProgress();
   const ship = options.ship;
   for (const file of ['ro/main', 'hen/main', 'game/main', 'bootstrap.bin',
     ...(options.hbmenu ? ['hbmenu.nro'] : [])]) {
@@ -104,7 +105,9 @@ async function main() {
     {stdio: ['inherit', 'pipe', 'inherit'], env: {...process.env,
       NS2_TARGET: 'civ7', NS2_RO_IMAGE: path.join(ship, 'ro/main')}});
   acquisition.stdout.pipe(process.stdout);
-  const output = observe(acquisition);
+  const output = observe(acquisition, line => {
+    if (line.startsWith('Run folder: ')) progress?.start(line.slice('Run folder: '.length));
+  });
   await output.waitFor('RO frontend verified');
   const folder = output.seen.filter(line => line.startsWith('Run folder: ')).at(-1);
   if (!folder) throw Error('run.cjs did not print its run folder');
@@ -131,6 +134,7 @@ async function main() {
       path.join(ship, 'game/main'), programs);
     console.log(`HEN PID ${started.pid}; startup record: ${started.file}`);
   } catch (error) {
+    progress?.fail(error);
     console.error(`HEN startup failed; the Civ7 RPC remains held in ${run}`);
     console.error(error.stack);
     console.error('Stop with Ctrl-C and restart the console before another attempt.');
@@ -138,6 +142,7 @@ async function main() {
     return;
   }
 
+  progress?.succeed();
   console.log('HEN is running. Close Civilization VII normally; hold R while opening a native game.');
   console.log('Keep this process running until Civilization VII closes.');
   if (acquisition.exitCode === null)
@@ -149,8 +154,16 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(error => {
-  console.error(error.stack);
-  acquisition?.kill('SIGTERM');
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  // run.cjs treats SIGTERM as a graceful release of the held endpoint.
+  for (const signal of ['SIGINT', 'SIGTERM'])
+    process.on(signal, () => {progress?.stop(); acquisition?.kill('SIGTERM');});
+  main().catch(error => {
+    progress?.fail(error);
+    console.error(error.stack);
+    acquisition?.kill('SIGTERM');
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {parse, observe};
