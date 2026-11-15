@@ -11,13 +11,18 @@ const readline = require('node:readline');
 const runScript = path.join(__dirname, 'run.cjs');
 const defaultShip = process.env.KAIHEN_PATH ||
   path.join(__dirname, '../kaihen');
+// Windows ships no `python3` on PATH: the name resolves to a Microsoft Store
+// stub that exits without running the script, so --restore-save fails there.
+// NS2_PYTHON overrides the interpreter when neither default fits.
+const python = process.env.NS2_PYTHON ||
+  (process.platform === 'win32' ? 'python' : 'python3');
 
 function usage(code) {
   console.log(`Usage: node engine/hen.cjs CONSOLE-IP [options]
   --dir DIR             kaiHEN folder containing bootstrap.bin etc (default: $KAIHEN_PATH or
                         ${path.relative(process.cwd(), defaultShip)})
   --restore-save DIR    first run DIR/restore_save.py DIR/trigger-recreate CONSOLE-IP
-                        (CivSwitch save-tools folder)
+                        (CivSwitch save-tools folder; runs $NS2_PYTHON or ${python})
   --no-hbmenu           do not stage hbmenu.nro to SD
   --no-programs         do not stage the programs/ folder to SD
 Start with CivSwitch's Remote JS Loader listening on the console (:9026).`);
@@ -96,7 +101,7 @@ async function main() {
   }
   if (options.restore) {
     console.log('Restoring the CivSwitch save');
-    await runToEnd('python3', [path.join(options.restore, 'restore_save.py'),
+    await runToEnd(python, [path.join(options.restore, 'restore_save.py'),
       path.join(options.restore, 'trigger-recreate'), options.console]);
   }
 
