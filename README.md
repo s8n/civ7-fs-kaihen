@@ -1,5 +1,9 @@
 # civ7-fs-kaihen
 
+
+> [!IMPORTANT]
+> Consider using [CivSwitchFS-kaiHEN](https://github.com/s8n/CivSwitchFS-kaiHEN) instead! It's much faster and runs fully on device, doesn't require ethernet either. Semi-untethered, even!
+
 Boots kaiHEN 20261114c on a Switch 2 through Civilization VII.
 
 [kaiHEN](https://github.com/ouncebrew/kaihen) is a homebrew enabler (HEN)
